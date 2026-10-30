@@ -57,7 +57,7 @@ $("openMemberSpace").onclick=()=>{route("member");loadDashboard();}; $("refreshD
 document.querySelectorAll("[data-member-section]").forEach(b=>b.onclick=()=>{if(!currentUser)return openLogin();route("member");loadMemberSection(b.dataset.memberSection);});
 document.addEventListener("click",event=>{if(!event.target.closest("[data-open-activity]"))return;route("member");loadMemberSection("activities");});
 document.querySelectorAll("[data-admin-section]").forEach(b=>b.onclick=()=>selectAdmin(b.dataset.adminSection));
-const importArtisansButton=document.createElement("button");importArtisansButton.id="importArtisans";importArtisansButton.textContent="Importer la liste Excel";importArtisansButton.hidden=true;$("newItem").after(importArtisansButton);
+const importArtisansButton=document.createElement("button");importArtisansButton.id="importArtisans";importArtisansButton.textContent="Mettre à jour depuis Google Sheets";importArtisansButton.hidden=true;$("newItem").after(importArtisansButton);
 const backupButton=document.createElement("button");backupButton.id="backupData";backupButton.textContent="⇩ Sauvegarder les données";document.querySelector(".admin-shortcuts").appendChild(backupButton);
 $("newItem").onclick=()=>openEditor(); importArtisansButton.onclick=importExcelArtisans; $("closeEditor").onclick=$("cancelEditor").onclick=closeEditor; $("editorForm").onsubmit=e=>["magazines","photoAlbums"].includes(adminSection)?saveAdminMediaItem(e):saveAdminItem(e);
 backupButton.onclick=backupApplicationData;
@@ -118,49 +118,60 @@ async function handleMemberAction(e){if(e.target.closest("[data-join-activity]")
 function openMemberProposal(section,id=null,data={}){$("privateResults").innerHTML=`<section class="admin-panel"><div class="panel-heading"><div><span>${id?"MODIFICATION":"PROPOSITION"}</span><h2>${id?"Modifier":section==="aid"?"Nouvelle demande d’entraide":"Nouvelle annonce"}</h2></div></div><form id="memberProposal" class="content-form"><label>Titre<input name="title" maxlength="100" required value="${escapeHtml(data.title)}"></label><label>Catégorie<select name="category">${(section==="aid"?["Demande","Proposition"]:["Vente","Don","Recherche","Prêt"]).map(v=>`<option ${data.category===v?"selected":""}>${v}</option>`).join("")}</select></label><label>Description<textarea name="description" rows="10" maxlength="2500" required>${escapeHtml(data.description)}</textarea></label>${section==="classifieds"?`<label>Photos de l’annonce<input name="images" type="file" accept="image/jpeg,image/png" multiple><small>Jusqu’à 3 photos. Elles seront automatiquement adaptées pour le téléphone.</small></label>`:""}<label>Votre nom<input name="authorName" maxlength="80" required value="${escapeHtml(data.authorName)}"></label><label>Téléphone ou e-mail de contact<input name="contact" maxlength="100" required placeholder="06… ou nom@exemple.fr" value="${escapeHtml(data.contact)}"></label><div class="form-actions"><button type="button" class="secondary-action" data-member-section="${section}">Annuler</button><button class="primary">${id?"Enregistrer et soumettre":"Envoyer pour validation"}</button></div></form></section>`;$("memberProposal").onsubmit=async event=>{event.preventDefault();const form=event.currentTarget,f=new FormData(form),files=section==="classifieds"?f.getAll("images").filter(file=>file?.size):[];if(files.length>3){form.insertAdjacentHTML("afterbegin","<div class='notice'>Sélectionnez au maximum 3 photos.</div>");return;}const button=form.querySelector('button[type="submit"],button.primary'),payload={title:f.get("title").trim(),category:f.get("category"),description:f.get("description").trim(),authorName:f.get("authorName").trim(),contact:String(f.get("contact")||"").trim(),progress:section==="aid"?(data.progress||"open"):null,authorUid:currentUser.uid,status:"pending",updatedAt:serverTimestamp()};button.disabled=true;button.textContent="Préparation…";try{if(files.length){payload.images=[];for(let index=0;index<files.length;index++){button.textContent=`Photo ${index+1} sur ${files.length}…`;payload.images.push(await compressMediaImage(files[index],1000,220000));}}else if(id&&Array.isArray(data.images))payload.images=data.images;if(id)await updateDoc(doc(db,config[section].collection,id),payload);else{payload.createdAt=serverTimestamp();await addDoc(collection(db,config[section].collection),payload);}$("privateResults").innerHTML="<div class='notice success'>Votre proposition a été transmise à l’administration.</div>";}catch(error){console.error(error);button.disabled=false;button.textContent=id?"Enregistrer et soumettre":"Envoyer pour validation";form.insertAdjacentHTML("afterbegin","<div class='notice'>L’envoi a échoué.</div>");}};}
 
 const excelArtisans = [
-  [2,"Administratif","CÉBÉLIEU Stéphanie","06 82 50 59 96","Propriétaire au Grand Pavois. Toutes démarches administratives et fiscales, entraide voisins. Adresse : Grand Pavois."],
-  [4,"Baby Sitting","AUBERT Alice","06 71 21 54 29","Habite le Grand Pavois. 16 ans, avec expérience. Adresse : Grand Pavois."],
-  [8,"Couture","Na Créa","06 65 24 58 95","Retouches. Adresse : 111 rue Jean Mermoz (n°45), 13008 Marseille."],
-  [9,"Couture","Bel Air","06 15 33 77 48","Adresse : 10 rue Bel Air, 13006 Marseille."],
-  [10,"Couture","KS Retouches","06 27 57 72 91","Adresse : 6 place Ernest Delibes, 13009 Marseille. Recommandé par CÉBÉLIEU Stéphanie."],
-  [12,"Désinfection / nuisibles","PARIENTE Pierre","06 07 42 00 38","Adresse : 1 rue Adolphe Thiers. Recommandé par ESKENAZI Henri."],
-  [14,"Électricien","DEMARESTZ Guillaume","06 12 25 74 07","Contact recommandé par l’AGP."],
-  [15,"Électricien","PERETTI Damien","06 60 47 76 45","Contact recommandé par l’AGP."],
-  [16,"Électricien","SABATIE Patrick","06 19 75 18 49","Contact recommandé par l’AGP."],
-  [17,"Électricien","Société Efficas — Mme SOURIAUD","06 20 82 53 85","Électricité et volets électriques. Recommandé par BONNENFANT Philippe."],
-  [19,"Infirmier","Laetitia","06 01 76 01 74","Adresse : 25 boulevard Édouard Herriot, 13008 Marseille."],
-  [20,"Infirmier","Camille","06 73 30 79 27","Recommandé par CÉBÉLIEU Stéphanie."],
-  [22,"Informatique","KSISS Alexandre","06 29 59 59 14","Propriétaire au Grand Pavois. Entraide voisins. Adresse : Grand Pavois."],
-  [23,"Informatique","CAZALS Paul","07 81 91 79 62","Habitant du Grand Pavois. Entraide voisins. Adresse : Grand Pavois."],
-  [24,"Informatique","LUPART Richard","07 81 43 72 98","Habitant du Grand Pavois. Entraide voisins. Adresse : Grand Pavois."],
-  [26,"Jardinage / Plantes","AUBERT Maeva","06 71 21 54 29","Propriétaire au Grand Pavois. Adresse : Grand Pavois."],
-  [28,"Laveur de vitres","Nad Entreprise","06 44 02 30 44","Contact recommandé par l’AGP."],
-  [33,"Miroitier","Massilia Miroiterie","04 91 33 71 66","Adresse : 2 place de la Corderie, 13007 Marseille. Recommandé par ESKENAZI Henri."],
-  [35,"Opticien à domicile","ALBERTINI Julie","07 66 82 70 08","Vient avec tout son matériel. Prise en charge Sécurité sociale et mutuelles. Recommandé par CÉBÉLIEU Stéphanie."],
-  [37,"Ostéopathe","TRAMONI Charlotte","06 16 76 64 80","Propriétaire au Grand Pavois. Peut se déplacer à domicile. Adresse : Grand Pavois."],
-  [39,"Parquetteur","JULLIEN Olivier","06 17 97 25 18","Recommandé par SALEM Rachid."],
-  [42,"Peintre-Plâtrier","POLAT Isak","06 22 49 12 79","Plâtrier-peintre."],
-  [43,"Peintre-Plâtrier","AYOUBOV Timour","07 51 09 09 09","Plâtrier-peintre. Adresse : Résidence Plan de Jarre, chemin de Sormiou, 13009 Marseille. SIRET : 50012631300013. Recommandé par Julien 29-2."],
-  [48,"Plombier","CRISTINEL Filip","07 51 17 51 02","Adresse : 51 boulevard Jeanne d’Arc, 13005 Marseille. Préciser Grand Pavois. Recommandé par CÉBÉLIEU Stéphanie."],
-  [49,"Plombier","Josselin","06 72 90 07 23","Contact recommandé par l’AGP."],
-  [50,"Plombier","Cœur de plombier — M. CŒUR","06 29 38 58 32","Plomberie et carrelage. Recommandé par BONNENFANT Philippe."],
-  [51,"Plombier","KOZELKO Alexis","06 48 79 17 69","Recommandé par SALEM Rachid."],
-  [53,"Rénovation","France Habitat","06 50 18 00 09","Salle de bains, carrelage, plomberie et béton ciré. Site : https://www.france-habitat-marseille.fr/. Recommandé par CASTAGNE Guy."],
-  [54,"Rénovation","Joseph Boghossian","07 81 41 63 22","Recommandé par MONADJEMI Ramin."],
-  [56,"Réparation matériel HIFI","Dominique Attya","06 15 16 21 88","Site : https://www.clic-droit.net/. Recommandé par CASTAGNE Guy."],
-  [58,"Serrurier","YB Serrurier — Yohann AZOULAY","06 31 60 81 29","Serrurerie classique et urgence 24 h/24, 7 j/7. Adresse : 47 boulevard Rabatau."],
-  [61,"Sorties chiens / Gardes","LEFRILEUX Corinne","06 52 92 13 05","Propriétaire au Grand Pavois. Adresse : Grand Pavois."],
-  [63,"Vitrier et climatisation","Tryba Marseille","04 20 98 13 37","Adresse : 93 boulevard Sakakini, 13005 Marseille. Site : https://www.tryba.com/. Recommandé par M. BLEYNAT."],
-  [64,"Vitrier et climatisation","Le Bouquet de l’Habitat","04 91 72 10 64","Menuiserie à Marseille, service à domicile. Adresse : 131 avenue Joseph Vidal, 13008 Marseille. Site : https://www.lbdh.fr/. Recommandé par SIALELLI Jeanne."],
-  [66,"Volets roulants / Stores","Répar’stores","04 28 38 49 94","Recommandé par CAZALS Paul."]
+  [2,"Administratif","CÉBÉLIEU Stéphanie","06 82 50 59 96","propriétaire au GP. toutes démarches administratives et fiscales, entraide voisins. Adresse : GRAND PAVOIS."],
+  [4,"Baby Sitting","AUBERT Alice","06 71 21 54 29","habite le GP. 16 ans, avec expérience. Adresse : GRAND PAVOIS."],
+  [6,"Climatisation","MICHEL Ludovic","06 70 01 46 85","propriétaire au GP."],
+  [7,"Climatisation","GRAS Éric","06 12 93 88 18","Recommandé par Gilbert FIENGO."],
+  [11,"Couture","Na Créa","06 65 24 58 95","Retouches. Adresse : 111, rue Jean Mermoz (n°45) 13008. Recommandé par LUPART Cécile."],
+  [12,"Couture","Bel Air","06 15 33 77 48","Adresse : 10, rue Bel air, 13006 Marseille."],
+  [13,"Couture","KS Retouches","06 27 57 72 91","Adresse : 6 Place Ernest Delibes,13009 Marseille. Recommandé par CÉBÉLIEU Stéphanie."],
+  [15,"Désinfection / nuisibles","PARIENTE Pierre","06 07 42 00 38","Adresse : 1, rue Adolphe Thiers. Recommandé par ESKENAZI Henri."],
+  [17,"Électricien","DEMARESTZ Guillaume","06 12 25 74 07","Contact recommandé par l’AGP."],
+  [18,"Électricien","PERETTI Damien","06 60 47 76 45","Contact recommandé par l’AGP."],
+  [19,"Électricien","SABATIE Patrick","06 19 75 18 49","Contact recommandé par l’AGP."],
+  [20,"Électricien","Société Efficas — Mme SOURIAUD","06 20 82 53 85","Électricité et volets électriques. Recommandé par BONNENFANT Philippe."],
+  [22,"Infirmier","Laetitia","06 01 76 01 74","Adresse : 25 Bd Edouard Herriot, 13008 Marseille."],
+  [23,"Infirmier","Camille","06 73 30 79 27","Recommandé par CÉBÉLIEU Stéphanie."],
+  [25,"Informatique","KSISS Alexandre","06 29 59 59 14","propriétaire au GP. entraide voisins. Adresse : GRAND PAVOIS."],
+  [26,"Informatique","CAZALS Paul","07 81 91 79 62","habitant du GP. entraide voisins. Adresse : GRAND PAVOIS."],
+  [27,"Informatique","LUPART Richard","07 81 43 72 98","habitant du GP. entraide voisins. Adresse : GRAND PAVOIS."],
+  [29,"Jardinage / Plantes","AUBERT Maeva","06 71 21 54 29","propriétaire au GP. Adresse : GRAND PAVOIS."],
+  [31,"Laveur de vitres","Nad Entreprise","06 44 02 30 44","Contact recommandé par l’AGP."],
+  [33,"Ménage","Marie-Claire Rodriguez","07 81 39 35 02","CESU+."],
+  [36,"Miroitier","Massilia Miroiterie","04 91 33 71 66","Adresse : 2 place de la Corderie 13007. Recommandé par ESKENAZI Henri."],
+  [38,"Opticien à domicile","ALBERTINI Julie","07 66 82 70 08","Opticien à domicile. vient avec tout son matériel, prise en charge sécu et mutuelles. Recommandé par CÉBÉLIEU Stéphanie."],
+  [40,"Ostéopathe","TRAMONI Charlotte","06 16 76 64 80","propriétaire au GP. peut faire du domicile. Adresse : GRAND PAVOIS. Recommandé par CÉBÉLIEU Stéphanie."],
+  [41,"Ostéopathe","MADANI Anis","06 15 78 33 42","Adresse : 2 boulevard Michelet, 13008 Marseille. Référence : Doctolib. Recommandé par LUPART Cécile."],
+  [43,"Parquetteur","JULLIEN Olivier","06 17 97 25 18","Recommandé par SALEM Rachid."],
+  [46,"Peintre-Plâtrier","POLAT Isak","06 22 49 12 79","Plâtrier Peintre."],
+  [47,"Peintre-Plâtrier","AYOUBOV Timour","07 51 09 09 09","Plâtrier Peintre. Siret : 50012631300013 - TVA intra : FR235001263100013. Adresse : Rés. Plan de Jarre Chemin de Sormiou 13009. Recommandé par Julien 29-2."],
+  [49,"Petit bricolage","Chabane Benadji","07 74 68 79 91","Contact recommandé par l’AGP."],
+  [50,"Petit bricolage","Vincent ACE","06 65 54 46 16","Recommandé par SIALLELI Jeanne."],
+  [52,"Plombier","CRISTINEL Filip","07 51 17 51 02","préciser Grand Pavois. Adresse : 51 bd Jeanne D`ARC 13005 MARSEILLE. Recommandé par CÉBÉLIEU Stéphanie."],
+  [53,"Plombier","Josselin","06 72 90 07 23","Contact recommandé par l’AGP."],
+  [54,"Plombier","Coeur de plombier — Mr COEUR","06 29 38 58 32","+ carrelage. Recommandé par BONNENFANT Philippe."],
+  [55,"Plombier","KOZELKO Alexis","06 48 79 17 69","Recommandé par SALEM Rachid."],
+  [57,"Rénovation","France Habitat","06 50 18 00 09","salle de bains, carrelage, plomberie, béton ciré. Site : https://www.france-habitat-marseille.fr/. Recommandé par CASTAGNE Guy."],
+  [58,"Rénovation","Joseph Boghossian","07 81 41 63 22","Recommandé par MONADJEMI Ramin."],
+  [60,"Réparation matériel HIFI","Dominique Attya","06 15 16 21 88","Site : https://www.clic-droit.net/. Recommandé par CASTAGNE Guy."],
+  [62,"Serrurier","YB Serrurier — Yohann AZOULAY","06 31 60 81 29","Serrurerie classique et Urgence 24h/24 - 7j/7. Adresse : 47 BOULEVARD RABATAU."],
+  [64,"Sophrologue","Anaïs Roy","06 29 58 52 57","Habite le GP. Adresse : GRAND PAVOIS. Site : https://anaisroysophrologue.fr/. Recommandé par CÉBÉLIEU Stéphanie."],
+  [66,"Sorties Chiens / Gardes","LEFRILEUX Corinne","06 52 92 13 05","propriétaire au GP. Adresse : GRAND PAVOIS."],
+  [67,"Sorties Chiens / Gardes","LEMOINE Francis","06 67 33 74 07","Adresse : GRAND PAVOIS."],
+  [69,"Vitrier et clim","Tryba Marseille","04 20 98 13 37","Adresse : 93 Boulevard Sakakini, 13005 MARSEILLE. Site : https://www.tryba.com. Recommandé par Mr BLEYNAT."],
+  [70,"Vitrier et clim","Le bouquet de l'Habitat","04 91 72 10 64","Menuiserie à Marseille. service à domicile dans Marseille. Adresse : 131, Avenue Joseph Vidal 13008 MARSEILLE. Site : https://www.lbdh.fr. Recommandé par SIALELLI Jeanne."],
+  [72,"Volets roulants, Stores","Répar Stores","04 28 38 49 94","Recommandé par CAZALS Paul."],
 ];
 
 async function importExcelArtisans(){
-  const button=importArtisansButton;button.disabled=true;button.textContent="Import en cours…";
+  const button=importArtisansButton;button.disabled=true;button.textContent="Synchronisation en cours…";
   try{
-    await Promise.all(excelArtisans.map(([row,category,name,phone,description])=>setDoc(doc(db,"artisans",`excel-${row}`),{category,name,phone,description,status:"published",source:"LISTE DES ARTISANS.xlsx",sourceRow:row,updatedAt:serverTimestamp()},{merge:true})));
-    message(`${excelArtisans.length} contacts importés avec succès.`);button.textContent="Liste Excel importée";await loadAdminList();
-  }catch(error){console.error(error);message("L’import a échoué.","error");button.disabled=false;button.textContent="Réessayer l’import Excel";}
+    const existing=await getDocs(collection(db,"artisans"));
+    const imported=existing.docs.filter(item=>["LISTE DES ARTISANS.xlsx","Google Sheets — LISTE DES ARTISANS"].includes(item.data().source));
+    await Promise.all(imported.map(item=>deleteDoc(item.ref)));
+    await Promise.all(excelArtisans.map(([row,category,name,phone,description])=>setDoc(doc(db,"artisans",`sheet-${row}`),{category,name,phone,description,status:"published",source:"Google Sheets — LISTE DES ARTISANS",sourceRow:row,updatedAt:serverTimestamp()})));
+    message(`${excelArtisans.length} contacts synchronisés avec Google Sheets.`);button.textContent="Liste Google Sheets à jour";await loadAdminList();
+  }catch(error){console.error(error);message("La synchronisation a échoué.","error");button.disabled=false;button.textContent="Réessayer la synchronisation";}
 }
 
 async function selectAdmin(section){adminSection=section;editingId=null;closeEditor();$("adminSectionTitle").textContent=config[section].title;$("newItem").hidden=["classifieds","aid","users"].includes(section);importArtisansButton.hidden=section!=="artisans";document.querySelectorAll("[data-admin-section]").forEach(b=>b.classList.toggle("active-feature",b.dataset.adminSection===section));await Promise.all([loadAdminList(),updateAdminBadges()]);}
