@@ -144,6 +144,6 @@
 .secondary-activity .activity-details-button{background:#eaf1f8;color:var(--navy)}[data-view="admin"] .admin-main-grid button.active-feature i{background:#ffffff24}
 .external-event{border:1px solid #d8c58d;background:linear-gradient(145deg,#fffaf0,#fff)}.external-event .activity-date{background:linear-gradient(145deg,#6c5825,#c19738)}.external-event .pill{background:#fff0c2;color:#6c5000}.external-event-notice{padding:10px 12px;border-left:4px solid var(--gold);border-radius:8px;background:#fff7dd;color:#5d4600!important;font-weight:800}.information-only-badge{display:inline-flex;margin-top:12px;padding:9px 11px;border-radius:10px;background:#edf1f5;color:var(--navy);font-size:.78rem;font-weight:900}.external-event-link{display:inline-flex;margin-top:11px;color:var(--blue);font-weight:900;text-decoration:none}.content-form select{width:100%;padding:12px 13px;border:1px solid #d9e0e8;border-radius:12px;font:inherit;color:var(--ink);background:white}
 [data-view="member"] .member-activity-card{flex-wrap:wrap}
-[data-view="member"] .activity-image{width:100%;height:260px;object-fit:contain;background:#eef2f7;border-radius:14px;flex:0 0 100%}
+[data-view="member"] .activity-image{width:100%;height:220px;object-fit:cover;object-position:center;background:#eef2f7;border-radius:14px;flex:0 0 100%}
 [data-view="member"] .activity-body{flex:1;min-width:0}
-@media(max-width:760px){[data-view="member"] .activity-image{height:220px}}
+@media(max-width:760px){[data-view="member"] .activity-image{height:180px}}
